@@ -1,17 +1,24 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from database import Base, engine
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 # i create the tables in the database
+
+def fake_hash_password(password: str):
+    return "fakehashed" + password
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # the user table
 class User(Base):
     __tablename__ = "Users"
     id_user = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(255),unique=True)
-    password = Column(String(255)) # for now it's a string, but later it will be hashed
-    ip_adress = Column(String(256))
+    password = Column(String(255)) 
+    ip_address = Column(String(256))
     id_role = Column(Integer, ForeignKey("Roles.id_role"))
     id_files = Column(Integer, ForeignKey("Files.id_file"))
+
 
 # the user_files table, made to manage the m-m relationship between users and files
 class User_Files(Base):
@@ -42,7 +49,5 @@ class Role(Base):
     __tablename__ = "Roles"
     id_role = Column(Integer, primary_key=True, autoincrement=True)
     role_name = Column(String(255), unique=True)
-
-print("I have created the tables :)")
 
 Base.metadata.create_all(bind=engine) # create the tables in the database
