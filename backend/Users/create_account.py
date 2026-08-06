@@ -12,6 +12,8 @@ def create_account(user: UserInfo, request: Request):
     db = SessionLocal()
     try:
         existing_user = db.query(User).filter(User.username == user.username).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already exists")
         forwarded = request.headers.get("x-forwarded-for")
         device_ip = (
             forwarded.split(",")[0].strip()
@@ -36,7 +38,11 @@ def create_account(user: UserInfo, request: Request):
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        return {"message": "User created successfully"}
+        return {
+            "message": "User created successfully",
+            "username": new_user.username,
+            "id_role": new_user.id_role,
+        }
 
     except HTTPException:
         raise

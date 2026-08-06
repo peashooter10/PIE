@@ -29,3 +29,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_device_ip(ip_address: str | None) -> str:
     return ip_address or ""
+
+def get_my_name(payload: UserInfo) -> str:
+    return payload.username
+
+def get_my_role(payload: UserInfo) -> str:
+    return UserInfo.username

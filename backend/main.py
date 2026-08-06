@@ -1,18 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from database import SessionLocal
+import models
+
 
 from Files.upload import router as upload_and_download
+
 from Users.create_account import router as create_account_router
 from Users.login import router as login_router
 from Users.logout import router as logout_router
 from Users.delete_account import router as delete_account_router
 
+from Roles.admin import router as admin_router
+from Roles.storage import router as storage_router
+
 app = FastAPI()
 
-@app.get("/", tags=["root"])
-async def root():
-    return {"the server works :)"}
+
 
 app.add_middleware(SessionMiddleware, secret_key="!secret")
 app.add_middleware(
@@ -28,13 +33,36 @@ app.add_middleware(
 )
 
 app.include_router(upload_and_download)
+
 app.include_router(create_account_router)
 app.include_router(login_router)
 app.include_router(logout_router)
 app.include_router(delete_account_router)
+
+app.include_router(admin_router)
+app.include_router(storage_router)
 
 print("registred routes:")
 for route in app.routes:
     if hasattr(route, "path"):
         print(f"route found: {route.path}")
 print("---")
+
+
+@app.get("/", tags=["root"])
+async def root():
+    return {"the server works :)"}
+
+@app.on_event("shutdown")
+def logout_all_users_on_shutdown():
+    db = SessionLocal()
+    try:
+        # clear the ip_address field for all users 
+        db.query(models.User).update({models.User.ip_address: ""})
+        db.commit()
+        print("Logged out all users on shutdown.")
+    except Exception as e:
+        db.rollback()
+        print("Failed to clear user logins on shutdown:", e)
+    finally:
+        db.close()

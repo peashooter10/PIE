@@ -18,6 +18,7 @@ class User(Base):
     ip_address = Column(String(256))
     id_role = Column(Integer, ForeignKey("Roles.id_role"))
     id_files = Column(Integer, ForeignKey("Files.id_file"))
+    diskSpace = Column(Integer, default=0) # the disk space of the user, in bytes
 
 
 # the user_files table, made to manage the m-m relationship between users and files
