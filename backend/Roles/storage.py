@@ -4,11 +4,12 @@ from models import User, Role
 from Users.auth import get_current_user
 import os
 import shutil
-from pydantic import BaseModel
+from pathlib import Path
+
+
+BASE_DIR="C://"
 
 router = APIRouter()
-
-
 
 @router.get("/roles/all_storage", tags=["storage"])
 def show_all_storage_units(current_user: dict = Depends(get_current_user)):
@@ -22,89 +23,51 @@ def show_all_storage_units(current_user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
-@router.get("/roles/all_storage", tags=["storage"])
-def show_all_storage_units(current_user: dict = Depends(get_current_user)):
+@router.get("/roles/create_upload_folder", tags=["storage"])
+def create_upload_folder(current_user: dict = Depends(get_current_user)):
     if current_user.get("role_name") != "storage":
         raise HTTPException(status_code=403, detail="Access denied. Storage only.")
     
     db = SessionLocal()
     try:
-        directory_name="My_cloud" + current_user.get("username")
+
+        directoryName=BASE_DIR+"My_cloud" + "_" +current_user.get("username")
         try:
-            os.mkdir(directory_name)
-            print(f"Directory '{directory_name}' created successfully.")
+            os.mkdir(directoryName)
+            return(f"Directory '{directoryName}' created successfully.")
         except FileExistsError:
-            print(f"Directory '{directory_name}' already exists.")
+            return(f"Directory '{directoryName}' already exists.")
         except PermissionError:
-            print(f"Permission denied: Unable to create '{directory_name}'.")
+            return(f"Permission denied: Unable to create '{directoryName}'.")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            return(f"An error occurred: {e}")
 
     finally:
         db.close()
 
-'''
-@router.post("/roles/create", tags=["admin"])
-def create_user(payload: CreateUserRequest, current_user: dict = Depends(get_current_user)):
-    if current_user.get("role_name") != "admin":
-        raise HTTPException(status_code=403, detail="Access denied. Admins only.")
+@router.post("/roles/free_storage", tags=["storage"])
+def storage_info(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role_name") != "storage":
+        raise HTTPException(status_code=403, detail="Access denied. Storage only.")
 
     db = SessionLocal()
     try:
-        existing_user = db.query(User).filter(User.username == payload.username).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Username already exists")
+        directoryName = BASE_DIR + "My_cloud_" + current_user.get("username")
+        if not os.path.exists(directoryName):
+            raise HTTPException(status_code=404, detail="User storage directory not found")
 
-        role = db.query(Role).filter(Role.role_name == payload.role_name).first()
-        if not role:
-            raise HTTPException(status_code=400, detail="Invalid role")
-
-        new_user = User(
-            username=payload.username,
-            password=hash_password(payload.password),
-            ip_address=payload.ip_address,
-            id_role=role.id_role,
-        )
-
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-
-        return {
-            "message": "User created successfully",
-            "username": new_user.username,
-            "id_role": new_user.id_role,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@router.post("/roles/delete", tags=["admin"])
-def delete_user(payload: DeleteUserRequest, current_user: dict = Depends(get_current_user)):
-    if current_user.get("role_name") != "admin":
-        raise HTTPException(status_code=403, detail="Access denied. Admins only.")
-
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == payload.username).first()
+        total, used, free = shutil.disk_usage(directoryName)
+        user = db.query(User).filter(User.username == current_user.get("username")).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-
-        db.delete(user)
+        user.diskSpace = free
         db.commit()
-        return {"message": f"User {payload.username} deleted successfully"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "username": user.username, 
+            "total_bytes":total,
+            "used_bytes":used,
+            "free_bytes": free
+                }
     finally:
         db.close()
-
-'''
+   
