@@ -5,7 +5,9 @@ from database import SessionLocal
 import models
 
 
-from Files.upload import router as upload_and_download
+from Files.upload import router as upload_router
+from Files.download import router as download_router
+from Files.lists import router as lists_router
 
 from Users.create_account import router as create_account_router
 from Users.login import router as login_router
@@ -14,6 +16,7 @@ from Users.delete_account import router as delete_account_router
 
 from Roles.admin import router as admin_router
 from Roles.storage import router as storage_router
+from Roles.user import router as user_router
 
 app = FastAPI()
 
@@ -32,7 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(upload_and_download)
+app.include_router(upload_router)
+app.include_router(download_router)
+app.include_router(lists_router)
 
 app.include_router(create_account_router)
 app.include_router(login_router)
@@ -41,6 +46,7 @@ app.include_router(delete_account_router)
 
 app.include_router(admin_router)
 app.include_router(storage_router)
+app.include_router(user_router)
 
 print("registred routes:")
 for route in app.routes:
@@ -66,3 +72,4 @@ def logout_all_users_on_shutdown():
         print("Failed to clear user logins on shutdown:", e)
     finally:
         db.close()
+

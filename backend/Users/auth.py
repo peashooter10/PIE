@@ -36,12 +36,10 @@ def decode_token(token: str) -> TokenData:
         if username is None:
             raise JWTError()
         return TokenData(username=username, role_name=role)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     token_data = decode_token(token)
@@ -50,7 +48,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         user = db.query(models.User).filter(models.User.username == token_data.username).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        # Return minimal info: username and role_name from token (safer to trust DB+token)
-        return {"username": user.username, "role_name": token_data.role_name}
+        role = db.query(models.Role).filter(models.Role.id_role == user.id_role).first()
+        role_name = role.role_name if role else token_data.role_name
+        return {"username": user.username, "role_name": role_name}
     finally:
         db.close()

@@ -17,13 +17,11 @@ def safe_username(username: str) -> str:
 def user_dir(username: str) -> Path:
     return STORAGE_ROOT / f"My_cloud_{safe_username(username)}"
 
-@router.get("/files/download/{filename}", tags=["files"])
-def download_file(filename: str, current_user: dict = Depends(get_current_user)):
+@router.get("/files/list", tags=["files"])
+def list_files(current_user: dict = Depends(get_current_user)):
     username = current_user.get("username")
     target_dir = user_dir(username)
-    # prevent path traversal
-    safe_name = Path(filename).name
-    file_path = target_dir / safe_name
-    if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path=str(file_path), filename=safe_name)
+    if not target_dir.exists():
+        return {"files": []}
+    files = [p.name for p in target_dir.iterdir() if p.is_file()]
+    return {"files": files}

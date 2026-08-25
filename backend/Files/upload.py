@@ -1,29 +1,48 @@
-from fastapi import FastAPI, UploadFile
-from fastapi import APIRouter
-from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
-import time, os
-import json
-import yaml
-timestr=time.strftime("%Y%m%d-%H%M%S")
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import FileResponse, JSONResponse
+from database import SessionLocal
+from models import User
+from Users.auth import get_current_user
+from pathlib import Path
+import os
+import time
 
 router = APIRouter()
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+STORAGE_ROOT = Path(os.getenv("STORAGE_ROOT", Path.home() / "pie_storage"))
 
-@router.post("/updown",tags=["updown"])
-def upload_and_download(file: UploadFile):
-    if file.content_type != "application/json":
-        return {"error": "Invalid file type. Only JSON files are allowed."}
-    else:
-        json_data=json.loads(file.file.read())
-        new_filename = "{}_{}.yaml".format(os.path.splitext(file.filename)[0],timestr)
-        # scriu datele intr-un fisier
-        # salvez fisierul
-        SAVE_FILE_PATH = os.path.join(UPLOAD_DIR, new_filename)
-        with open(SAVE_FILE_PATH, "w") as f:
-            yaml.dump(json_data, f)
+def safe_username(username: str) -> str:
+    return "".join(c for c in username if c.isalnum() or c in ("-", "_")).strip()
 
-        return FileResponse(path=SAVE_FILE_PATH, media_type="application/octet-stream", filename=new_filename)
+def user_dir(username: str) -> Path:
+    return STORAGE_ROOT / f"My_cloud_{safe_username(username)}"
+
+@router.post("/files/upload", tags=["files"])
+async def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    username = current_user.get("username")
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid user")
+
+    target_dir = user_dir(username)
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Storage root not writable")
+
+    # sanitize filename and avoid overwriting by appending timestamp if exists
+    basename = Path(file.filename).name
+    dest = target_dir / basename
+    if dest.exists():
+        ts = time.strftime("%Y%m%d-%H%M%S")
+        dest = target_dir / f"{Path(basename).stem}_{ts}{Path(basename).suffix}"
+
+    contents = await file.read()
+    try:
+        with open(dest, "wb") as f:
+            f.write(contents)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"filename": dest.name, "path": str(dest)}
+
+
