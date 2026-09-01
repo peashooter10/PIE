@@ -7,7 +7,8 @@ import shutil
 from pathlib import Path
 
 
-BASE_DIR="C://"
+STORAGE_ROOT = Path(os.getenv("STORAGE_ROOT", Path.home() / "pie_storage"))
+
 
 router = APIRouter()
 
@@ -30,8 +31,7 @@ def create_upload_folder(current_user: dict = Depends(get_current_user)):
     
     db = SessionLocal()
     try:
-
-        directoryName=BASE_DIR+"My_cloud" + "_" +current_user.get("username")
+        directoryName=STORAGE_ROOT
         try:
             os.mkdir(directoryName)
             return(f"Directory '{directoryName}' created successfully.")
@@ -52,7 +52,8 @@ def storage_info(current_user: dict = Depends(get_current_user)):
 
     db = SessionLocal()
     try:
-        directoryName = BASE_DIR + "My_cloud_" + current_user.get("username")
+        directoryName=STORAGE_ROOT
+
         if not os.path.exists(directoryName):
             raise HTTPException(status_code=404, detail="User storage directory not found")
 

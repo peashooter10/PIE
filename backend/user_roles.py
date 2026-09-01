@@ -11,7 +11,6 @@ class CreateUserRequest(BaseModel):
     password: str
     ip_address: str = ""
     role_name: str
-    id_files: str | None = None
     diskSpace: int = 0
 
 class DeleteUserRequest(BaseModel):
